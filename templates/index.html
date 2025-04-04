@@ -1,197 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snoop Network Scan Tool</title>
+    <title>Network Tool</title>
     <script>
-        // Fetch network interfaces when the page loads
         function fetchInterfaces() {
             fetch('/interfaces')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error(`HTTP error! Status: ${response.status}`);
                     }
                     return response.json();
                 })
                 .then(data => {
                     const interfaceSelect = document.getElementById('interface');
-                    interfaceSelect.innerHTML = '<option value="" disabled selected>Select Interface</option>'; // Add placeholder
-                    if (Array.isArray(data)) {
-                        data.forEach(interfaceName => {
-                            const option = document.createElement('option');
-                            option.value = interfaceName;
-                            option.textContent = interfaceName;
-                            interfaceSelect.appendChild(option);
-                        });
-                    } else {
-                         console.error("Received non-array data for interfaces:", data);
-                         alert('Could not load network interfaces correctly.');
-                    }
+                    interfaceSelect.innerHTML = '';
+                    data.forEach(interface => {
+                        const option = document.createElement('option');
+                        option.value = interface;
+                        option.textContent = interface;
+                        interfaceSelect.appendChild(option);
+                    });
                 })
                 .catch(error => {
-                     console.error('Failed to fetch interfaces:', error);
-                     alert('Failed to fetch network interfaces: ' + error);
+                    console.error('Error fetching interfaces:', error);
+                    alert('Failed to fetch interfaces. Please check the server or try again later.');
                 });
         }
 
-        // Handle form submission to run the scan
-        function submitForm(event) {
-            event.preventDefault(); // Prevent default form submission
-
-            const form = event.target;
-            const formData = new FormData(form);
-            const params = new URLSearchParams();
-            for (const pair of formData) {
-                params.append(pair[0], pair[1]);
-            }
-
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = 'Scan running... please wait.'; // Provide feedback
-
-            fetch('/run-scan', {
-                method: 'POST',
-                body: params
+    function fetchReport() {
+        fetch('/get-report')
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'report.txt';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
             })
-            .then(response => response.text()) // Get response text regardless of status
-            .then(data => {
-                statusDiv.textContent = data; // Display success or error message from server
-                // Optionally clear form or redirect after success?
-                // if (response.ok) { /* maybe clear form or enable report button */ }
-            })
-            .catch(error => {
-                console.error('Failed to run scan:', error);
-                statusDiv.textContent = 'Failed to run scan: ' + error;
-                alert('Failed to submit scan request: ' + error);
-            });
+            .catch(error => alert('Failed to fetch report: ' + error));
+    }
+
+    function submitForm(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const params = new URLSearchParams();
+        for (const pair of formData) {
+            params.append(pair[0], pair[1]);
         }
 
-        // Fetch and download the report file
-        function fetchReport() {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = 'Fetching report...'; // Provide feedback
+        fetch('/run-scan', {
+            method: 'POST',
+            body: params
+        })
+        .then(response => response.text())
+        .then(data => {
+            alert(data);
+            window.location.href = '/';
+        })
+        .catch(error => alert('Failed to run scan: ' + error));
+    }
 
-            fetch('/get-report')
-                .then(response => {
-                    if (!response.ok) {
-                         // If report not found (404) or other error
-                         return response.text().then(text => { throw new Error(text || `HTTP error! status: ${response.status}`) });
-                    }
-                    // Get filename from content-disposition header if available, otherwise default
-                    const filename = response.headers.get('content-disposition')?.split('filename=')[1] || 'report.txt';
-                    return response.blob().then(blob => ({ blob, filename }));
-                })
-                .then(({ blob, filename }) => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = filename; // Use the determined filename
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                    statusDiv.textContent = 'Report downloaded.';
-                })
-                .catch(error => {
-                    console.error('Failed to fetch report:', error);
-                    statusDiv.textContent = 'Failed to fetch report: ' + error.message;
-                    alert('Failed to fetch report: ' + error.message);
-                });
-        }
-
-        // Add event listeners after the DOM is fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchInterfaces(); // Load interfaces on page load
-            document.getElementById('scanForm').addEventListener('submit', submitForm); // Add submit listener
-            document.getElementById('fetchReportButton').addEventListener('click', fetchReport); // Add click listener for report button
-        });
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchInterfaces();
+        document.getElementById('scanForm').addEventListener('submit', submitForm);
+    });
     </script>
     <style>
-        body {
-            font-family: sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-        }
-        h1, h2 {
-            color: #333;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 5px;
-        }
         form {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
         }
         label {
             display: block;
             margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
         }
         input[type="text"], select {
-            width: calc(100% - 20px); /* Adjust width considering padding */
-            padding: 10px;
-            margin-bottom: 15px;
+            width: 300px;
+            padding: 8px;
+            margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            box-sizing: border-box; /* Include padding in width calculation */
         }
         input[type="submit"], button {
             padding: 10px 20px;
-            background-color: #5cb85c; /* Green */
+            background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 1em;
-            margin-right: 10px; /* Spacing between buttons */
         }
         input[type="submit"]:hover, button:hover {
-            background-color: #4cae4c; /* Darker Green */
-        }
-        button#fetchReportButton {
-             background-color: #337ab7; /* Blue */
-        }
-         button#fetchReportButton:hover {
-             background-color: #286090; /* Darker Blue */
-        }
-        #status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            background-color: #e9e9e9;
-            border: 1px solid #dcdcdc;
-            min-height: 20px; /* Ensure it's visible even when empty */
-            color: #333;
+            background-color: #45a049;
         }
     </style>
 </head>
 <body>
-    <h1>Snoop Network Scan Tool</h1>
-
+    <h1>Network Scan Tool</h1>
     <form id="scanForm">
         <label for="network">Network Range:</label>
-        <input type="text" id="network" name="network" required placeholder="e.g., 192.168.1.0/24" title="Enter the network range in CIDR notation (e.g., 192.168.1.0/24)">
-        <br>
-
+        <input type="text" id="network" name="network" required placeholder="e.g., 192.168.1.0/24" title="Enter the network range in CIDR notation (e.g., 192.168.1.0/24)"><br>
         <label for="interface">Network Interface:</label>
         <select id="interface" name="interface" required>
-            <option value="" disabled selected>Loading interfaces...</option>
             <!-- Options will be populated by JavaScript -->
-        </select>
-        <br>
-
+        </select><br>
         <input type="submit" value="Start Scan">
     </form>
 
-    <h2>Scan Status & Report</h2>
-    <div id="status">Scan status will appear here...</div>
-    <button id="fetchReportButton">Get Report</button>
-
-    <!-- Optional: Display report content directly -->
-    <!-- <pre id="report"></pre> -->
+    <h2>Fetch Scan Report</h2>
+    <button onclick="fetchReport()">Get Report</button>
+    <pre id="report"></pre>
 </body>
 </html>

@@ -1,0 +1,23 @@
+# Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.Python
+venv/
+env/
+*.venv
+
+# Snoop Generated Files
+report.txt
+network_tool.log
+network_scan.txt
+arp_scan.txt
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.idea/
+.vscode/
